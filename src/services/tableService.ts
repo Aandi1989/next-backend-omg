@@ -1,5 +1,5 @@
 import { Column } from "@/domain/column";
-import { Row, RowValues } from "@/domain/row";
+import { RowValues } from "@/domain/row";
 import { TablesRepository } from "@/repositories/tablesRepository";
 import { logger } from "@/lib/logger";
 import { validateCell } from "@/validators/validateCell";
@@ -148,6 +148,6 @@ export class TableService {
 
   reset() {
     this.repo.reset();
-    logger.info("In-memory tables reset");
+    logger.info("Tables repository reset");
   }
 }

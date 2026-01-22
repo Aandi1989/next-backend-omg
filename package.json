@@ -8,14 +8,16 @@
     "start": "next start",
     "lint": "eslint",
     "test": "jest",
-    "test:integration": "jest src/integration"
+    "test:integration": "jest --runInBand src/integration"
   },
   "dependencies": {
+    "better-sqlite3": "^12.6.2",
     "next": "16.1.4",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
