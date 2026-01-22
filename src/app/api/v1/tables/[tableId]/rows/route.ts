@@ -1,20 +1,11 @@
 import { NextResponse } from "next/server";
-import { validateRow } from "@/validators/validateRow";
-import { addRow, getTable } from "@/services/inMemoryDb";
+import { tableService } from "@/services";
 
 export async function POST(
   req: Request,
   ctx: { params: Promise<{ tableId: string }> }
 ) {
   const { tableId } = await ctx.params;
-
-  const table = getTable(tableId);
-  if (!table) {
-    return NextResponse.json(
-      { error: "TABLE_NOT_FOUND", message: `Table "${tableId}" not found` },
-      { status: 404 }
-    );
-  }
 
   let body: unknown;
   try {
@@ -38,25 +29,29 @@ export async function POST(
 
   const values = body as Record<string, unknown>;
 
-  const validation = validateRow(table.columns, values);
+  const result = tableService.addRow(tableId, values);
+  if (!result.ok) {
+    if (result.error === "TABLE_NOT_FOUND") {
+      return NextResponse.json(
+        { error: "TABLE_NOT_FOUND", message: `Table "${tableId}" not found` },
+        { status: 404 }
+      );
+    }
 
-  if (!validation.ok) {
     return NextResponse.json(
       {
         error: "VALIDATION_ERROR",
         message: "Invalid input data",
-        details: validation.errors,
+        details: result.details,
       },
       { status: 400 }
     );
   }
 
-  const row = addRow(tableId, values);
-
   return NextResponse.json(
     {
       ok: true,
-      row,
+      row: result.row,
     },
     { status: 201 }
   );
@@ -70,19 +65,13 @@ export async function GET(
 ) {
   const { tableId } = await ctx.params;
 
-  const table = getTable(tableId);
-  if (!table) {
+  const result = tableService.getRows(tableId);
+  if (!result.ok) {
     return NextResponse.json(
       { error: "TABLE_NOT_FOUND", message: `Table "${tableId}" not found` },
       { status: 404 }
     );
   }
 
-  const rows = table.rows.map((r) => ({
-    id: r.id,
-    ...r.values,
-  }));
-
-  return NextResponse.json(rows, { status: 200 });
+  return NextResponse.json(result.rows, { status: 200 });
 }
-

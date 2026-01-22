@@ -1,7 +1,7 @@
 import { GET } from "@/app/api/v1/tables/[tableId]/columns/route";
 import { POST } from "@/app/api/v1/tables/[tableId]/columns/route";
 import { DELETE as DELETE_COLUMN } from "@/app/api/v1/tables/[tableId]/columns/[columnKey]/route";
-import { resetInMemoryDb } from "@/services/inMemoryDb";
+import { resetInMemoryDb } from "@/services";
 
 describe("GET /api/v1/tables/:tableId/columns", () => {
   beforeEach(() => {

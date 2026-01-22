@@ -1,4 +1,4 @@
-import { deleteColumn } from "@/services/inMemoryDb";
+import { tableService } from "@/services";
 import { NextResponse } from "next/server";
 
 
@@ -8,7 +8,7 @@ export async function DELETE(
 ) {
   const { tableId, columnKey } = await ctx.params;
 
-  const res = deleteColumn(tableId, columnKey);
+  const res = tableService.deleteColumn(tableId, columnKey);
 
   if (!res.ok && res.error === "TABLE_NOT_FOUND") {
     return NextResponse.json(

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteRow, getTable } from "@/services/inMemoryDb";
+import { tableService } from "@/services";
 
 export async function DELETE(
   _req: Request,
@@ -7,25 +7,15 @@ export async function DELETE(
 ) {
   const { tableId, rowId } = await ctx.params;
 
-  const table = getTable(tableId);
-  if (!table) {
+  const result = tableService.deleteRow(tableId, rowId);
+  if (!result.ok && result.error === "TABLE_NOT_FOUND") {
     return NextResponse.json(
       { error: "TABLE_NOT_FOUND", message: `Table "${tableId}" not found` },
       { status: 404 }
     );
   }
 
-  const deleted = deleteRow(tableId, rowId);
-
-  // deleted === null => table not found (уже проверил, но пока оставляю на всякий случай)
-  if (deleted === null) {
-    return NextResponse.json(
-      { error: "TABLE_NOT_FOUND", message: `Table "${tableId}" not found` },
-      { status: 404 }
-    );
-  }
-
-  if (deleted === false) {
+  if (!result.ok && result.error === "ROW_NOT_FOUND") {
     return NextResponse.json(
       { error: "ROW_NOT_FOUND", message: `Row "${rowId}" not found` },
       { status: 404 }

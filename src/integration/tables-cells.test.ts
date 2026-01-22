@@ -1,5 +1,5 @@
 import { PATCH } from "@/app/api/v1/tables/[tableId]/rows/[rowId]/cells/route";
-import { addRow, resetInMemoryDb } from "@/services/inMemoryDb";
+import { tableService, resetInMemoryDb } from "@/services";
 
 describe("PATCH /api/v1/tables/:tableId/rows/:rowId/cells", () => {
   beforeEach(() => {
@@ -7,12 +7,16 @@ describe("PATCH /api/v1/tables/:tableId/rows/:rowId/cells", () => {
   });
 
   test("+ PATCH updates a single cell with valid input data", async () => {
-    const row = addRow("demo", {
+    const created = tableService.addRow("demo", {
       name: "cell test",
       price: 10,
       status: "NEW",
       createdAt: "2024-01-01T00:00:00Z",
     });
+    if (!created.ok) {
+      throw new Error("Failed to seed row");
+    }
+    const row = created.row;
 
     const body = { price: 55 };
     const req = new Request(
@@ -36,12 +40,16 @@ describe("PATCH /api/v1/tables/:tableId/rows/:rowId/cells", () => {
   });
 
   test("- PATCH failed cell update with invalid data", async () => {
-    const row = addRow("demo", {
+    const created = tableService.addRow("demo", {
       name: "cell test",
       price: 10,
       status: "NEW",
       createdAt: "2024-01-01T00:00:00Z",
     });
+    if (!created.ok) {
+      throw new Error("Failed to seed row");
+    }
+    const row = created.row;
 
     const body = { price: "invalid" };
     const req = new Request(

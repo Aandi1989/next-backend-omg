@@ -1,6 +1,6 @@
 import { GET as GET_ROWS, POST } from "@/app/api/v1/tables/[tableId]/rows/route";
 import { DELETE as DELETE_ROW } from "@/app/api/v1/tables/[tableId]/rows/[rowId]/route";
-import { addRow, resetInMemoryDb } from "@/services/inMemoryDb";
+import { tableService, resetInMemoryDb } from "@/services";
 
 describe("POST /api/v1/tables/:tableId/rows", () => {
   beforeEach(() => {
@@ -81,12 +81,15 @@ describe("GET /api/v1/tables/:tableId/rows", () => {
   });
 
   test("+ GET returns rows", async () => {
-    addRow("demo", {
+    const rowPayload = {
       name: "list row",
       price: 20,
       status: "NEW",
       createdAt: "2024-01-01T00:00:00Z",
-    });
+    };
+
+    const created = tableService.addRow("demo", rowPayload);
+    expect(created.ok).toBe(true);
 
     const req = new Request("http://localhost/api/v1/tables/demo/rows");
     const ctx = { params: Promise.resolve({ tableId: "demo" }) } as const;
@@ -117,12 +120,17 @@ describe("DELETE /api/v1/tables/:tableId/rows/:rowId", () => {
   });
 
   test("+ DELETE removes existing row", async () => {
-    const row = addRow("demo", {
+    const rowPayload = {
       name: "row to delete",
       price: 10,
       status: "NEW",
       createdAt: "2024-01-01T00:00:00Z",
-    });
+    };
+    const created = tableService.addRow("demo", rowPayload);
+    if (!created.ok) {
+      throw new Error("Failed to seed row");
+    }
+    const row = created.row;
 
     const req = new Request(
       `http://localhost/api/v1/tables/demo/rows/${row.id}`,

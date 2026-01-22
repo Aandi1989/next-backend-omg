@@ -1,28 +1,11 @@
 import { NextResponse } from "next/server";
-import { getTable, updateCell } from "@/services/inMemoryDb";
-import { validateCell } from "@/validators/validateCell";
+import { tableService } from "@/services";
 
 export async function PATCH(
   req: Request,
   ctx: { params: Promise<{ tableId: string; rowId: string }> }
 ) {
   const { tableId, rowId } = await ctx.params;
-
-  const table = getTable(tableId);
-  if (!table) {
-    return NextResponse.json(
-      { error: "TABLE_NOT_FOUND", message: `Table "${tableId}" not found` },
-      { status: 404 }
-    );
-  }
-
-  const row = table.rows.find((r) => r.id === rowId);
-  if (!row) {
-    return NextResponse.json(
-      { error: "ROW_NOT_FOUND", message: `Row "${rowId}" not found` },
-      { status: 404 }
-    );
-  }
 
   let body: unknown;
   try {
@@ -53,38 +36,42 @@ export async function PATCH(
   const [columnKey] = Object.keys(body);
   const value = (body as Record<string, unknown>)[columnKey];
 
-  const column = table.columns.find((c) => c.key === columnKey);
-  if (!column) {
-    return NextResponse.json(
-      { error: "COLUMN_NOT_FOUND", message: `Column "${columnKey}" not found` },
-      { status: 404 }
-    );
-  }
+  const result = tableService.updateCell(tableId, rowId, columnKey, value);
 
-  const err = validateCell(column, value);
-  if (err) {
+  if (!result.ok) {
+    if (result.error === "TABLE_NOT_FOUND") {
+      return NextResponse.json(
+        { error: "TABLE_NOT_FOUND", message: `Table "${tableId}" not found` },
+        { status: 404 }
+      );
+    }
+    if (result.error === "ROW_NOT_FOUND") {
+      return NextResponse.json(
+        { error: "ROW_NOT_FOUND", message: `Row "${rowId}" not found` },
+        { status: 404 }
+      );
+    }
+    if (result.error === "COLUMN_NOT_FOUND") {
+      return NextResponse.json(
+        { error: "COLUMN_NOT_FOUND", message: `Column "${columnKey}" not found` },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
       {
         error: "VALIDATION_ERROR",
         message: "Incorrect input data",
-        details: [err],
+        details: result.details,
       },
       { status: 400 }
     );
   }
 
-  const updated = updateCell(tableId, rowId, columnKey, value);
-  if (!updated) {
-    return NextResponse.json(
-      { error: "ROW_NOT_FOUND", message: `Row "${rowId}" not found` },
-      { status: 404 }
-    );
-  }
-
   return NextResponse.json(
     {
-      id: updated.id,
-      ...updated.values,
+      id: result.row.id,
+      ...result.row.values,
     },
     { status: 200 }
   );

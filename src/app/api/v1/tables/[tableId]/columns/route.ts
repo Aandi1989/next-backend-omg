@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { addColumn, getTable } from "@/services/inMemoryDb";
+import { tableService } from "@/services";
 import { Column, ColumnType } from "@/domain/column";
 
 
@@ -9,8 +9,8 @@ export async function GET(
 ) {
     const { tableId } = await ctx.params;
 
-    const table = getTable(tableId);
-    if (!table) {
+    const result = tableService.getColumns(tableId);
+    if (!result.ok) {
         return NextResponse.json(
             { error: "TABLE_NOT_FOUND", message: `Table "${tableId}" not found` },
             { status: 404 }
@@ -19,8 +19,8 @@ export async function GET(
 
     return NextResponse.json(
         {
-            tableId: table.id,
-            columns: table.columns,
+            tableId: result.tableId,
+            columns: result.columns,
         },
         { status: 200 }
     );
@@ -33,14 +33,6 @@ export async function POST(
     ctx: { params: Promise<{ tableId: string }> }
 ) {
     const { tableId } = await ctx.params;
-
-    const table = getTable(tableId);
-    if (!table) {
-        return NextResponse.json(
-            { error: "TABLE_NOT_FOUND", message: `Table "${tableId}" not found` },
-            { status: 404 }
-        );
-    }
 
     let body: unknown;
     try {
@@ -152,7 +144,14 @@ export async function POST(
         rules,
     };
 
-    const res = addColumn(tableId, column);
+    const res = tableService.addColumn(tableId, column);
+
+    if (!res.ok && res.error === "TABLE_NOT_FOUND") {
+        return NextResponse.json(
+            { error: "TABLE_NOT_FOUND", message: `Table "${tableId}" not found` },
+            { status: 404 }
+        );
+    }
 
     if (!res.ok && res.error === "COLUMN_EXISTS") {
         return NextResponse.json(
@@ -166,7 +165,6 @@ export async function POST(
         { status: 201 }
     );
 }
-
 
 
 
