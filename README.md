@@ -1,36 +1,103 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## О проекте
 
-## Getting Started
+Небольшое API на Next.js, которое позволяет работать с «таблицами»: есть колонки с типами и правилами, есть строки с данными по этим колонкам. Реализованы CRUD-операции для колонок, строк и отдельных ячеек, плюс health‑чек.
 
-First, run the development server:
+## Как запустить
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+1. **Клонировать репозиторий**
+   ```bash
+   git clone <repo-url>
+   cd next-backend-omg
+   ```
+2. **Устанавливить зависимости**
+   ```bash
+   npm install
+   ```
+3. **Запустить dev-сервер**
+   ```bash
+   npm run dev
+   ```
+   API доступно по `http://localhost:3000/api/v1/...`. При старте создаётся тестовая таблица `demo`, чтобы сразу можно было отправлять запросы.
+
+## Тесты
+
+- `npm run test` — юнит-тесты валидаторов, фиксируют формат ошибок.
+- `npm run test:integration` — интеграционные тесты, по одному прогону (флаг `--runInBand`). Перед каждым тестом база сбрасывается, поэтому результаты стабильные. Это позволяет рефакторить код и не тратить время на ручное тестирование
+
+## Архитектура
+
+- **Версионность**: все маршруты лежат в `src/app/api/v1/...`, поэтому легко добавить `v2`, не ломая существующих клиентов.
+- **Контроллер → сервис → репозиторий**: файлы `route.ts` занимаются только HTTP (распарсить JSON, вернуть `NextResponse`). Вся бизнес-логика — в `TableService`, а доступ к данным — через `TablesRepository`.
+- **Ручная валидация**: входные объекты гибкие — часть колонок обязательные, часть опциональные, пользователь может прислать разные наборы полей. Чтобы контролировать порядок проверок и форматы ошибок, валидация написана вручную (`src/validators`). Поддерживаются явные правила: `required`, `enum` (в демо колонка `status` принимает `NEW`/`PAID`), `min/max` для чисел и `regex` для строк. Любые другие поля в `rules` сразу отклоняются с `BAD_REQUEST`.
+- **Логирование**: в `src/lib/logger.ts` кастомный логгер. Он выводит понятные сообщения (tableId, rowId и т.д.), по логам легко понять, какие действия выполнялись или что пошло не так.
+
+## Хранение данных
+
+- Первый прототип хранил данные в памяти (`InMemoryTablesRepository`). Это помогло сэкономить время на первоначальном этапе написания API. Эту версию можно быстро найти переключившись между коммитами.
+- Финальная версия использует `better-sqlite3` (`SqliteTablesRepository`). Причины этого решения: не нужен отдельный сервер БД, файл легко очищать для тестов, а сам репозиторий можно безболезненно заменить на Postgres, если понадобится.
+- Значения строк хранятся в JSON (`values_json`). Для тестового задания список колонок динамический, так что хранить целый объект показалось самым подходящим вариантом. В проде можно нормализовать схему или использовать JSON-функции в выбранной БД.
+
+## Про таблицы, timestamps и health
+
+- API умеет работать с любым `tableId`, но по умолчанию используется одна таблица `demo`, чтобы проще было проверять корректность работы эндпоинтов. Но заложеная архитектура позволит в будущем удобно перейти на multiple table, если это будет необходимо.
+- Endpoint `/api/v1/health`был добавлен для мониторинга и всегда отвечает `{ "status": "ok" }`, если приложение запущено и работает.
+- Поле `createdAt` в тестовом считается пользовательским. В реальном сервисе системные поля создавались бы на сервере автоматически.
+
+## Обзор доступных эндпоинтов
+
+| Метод / путь | Что делает |
+| --- | --- |
+| `GET /api/v1/health` | Простой health-check. |
+| `GET /api/v1/tables/{tableId}/columns` | Возвращает список колонок и метаданных. |
+| `POST /api/v1/tables/{tableId}/columns` | Добавляет колонку (ожидает `key`, `title`, `type`, `required`, опциональные `enumValues`/`rules`). |
+| `DELETE /api/v1/tables/{tableId}/columns/{columnKey}` | Удаляет колонку и чистит одноимённые значения в строках. |
+| `GET /api/v1/tables/{tableId}/rows` | Возвращает массив строк в формате `{ id, ...values }`. |
+| `POST /api/v1/tables/{tableId}/rows` | Валидирует входные данные по правилам колонок и создаёт строку. |
+| `DELETE /api/v1/tables/{tableId}/rows/{rowId}` | Удаляет строку. |
+| `PATCH /api/v1/tables/{tableId}/rows/{rowId}/cells` | Меняет одну ячейку. Тело запроса должно содержать ровно одно поле. |
+
+### Пример запроса/ответа
+
+`POST /api/v1/tables/demo/rows`
+```json
+{
+  "name": "Book",
+  "price": 15,
+  "status": "NEW",
+  "createdAt": "2024-01-01T10:00:00Z"
+}
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ответ `201`
+```json
+{
+  "ok": true,
+  "row": {
+    "id": "2c7e...",
+    "tableId": "demo",
+    "values": {
+      "name": "Book",
+      "price": 15,
+      "status": "NEW",
+      "createdAt": "2024-01-01T10:00:00Z"
+    }
+  }
+}
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Если данные некорректны:
+```json
+{
+  "error": "VALIDATION_ERROR",
+  "message": "Invalid input data",
+  "details": [
+    {
+      "field": "name",
+      "code": "REQUIRED",
+      "message": "Поле \"name\" обязательно"
+    }
+  ]
+}
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Можно пользоваться любым HTTP-клиентом (curl/Postman). Интеграционные тесты в `src/integration/*.test.ts` тоже можно подсматривать — там показаны реальные payload’ы.
