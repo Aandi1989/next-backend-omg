@@ -13,22 +13,28 @@ export type TableRecord = {
 const tables = new Map<string, TableRecord>();
 
 // Create one example table, to check if POST works 
-const seedTableId = "demo";
-if (!tables.has(seedTableId)) {
-  tables.set(seedTableId, {
-    id: seedTableId,
-    name: "Demo table",
-    columns: [
-      { key: "name", title: "Name", type: "string", required: true },
-      { key: "price", title: "Price", type: "number", required: true, rules: { min: 0 } },
-      { key: "status", title: "Status", type: "enum", required: true, enumValues: ["NEW", "PAID"] },
-      { key: "createdAt", title: "Created At", type: "timestamp", required: true },
-      { key: "meta", title: "Meta", type: "object", required: false },
-      { key: "tags", title: "Tags", type: "array", required: false },
-    ],
-    rows: [],
-  });
+function seed() {
+  const seedTableId = "demo";
+
+  if (!tables.has(seedTableId)) {
+    tables.set(seedTableId, {
+      id: seedTableId,
+      name: "Demo table",
+      columns: [
+        { key: "name", title: "Name", type: "string", required: true },
+        { key: "price", title: "Price", type: "number", required: true, rules: { min: 0 } },
+        { key: "status", title: "Status", type: "enum", required: true, enumValues: ["NEW", "PAID"] },
+        { key: "createdAt", title: "Created At", type: "timestamp", required: true },
+        { key: "meta", title: "Meta", type: "object", required: false },
+        { key: "tags", title: "Tags", type: "array", required: false },
+      ],
+      rows: [],
+    });
+  }
 }
+
+// Initial seed on first import
+seed();
 
 export function getTable(tableId: string): TableRecord | null {
   return tables.get(tableId) ?? null;
@@ -120,5 +126,11 @@ export function deleteColumn(
   }
 
   return { ok: true };
+}
+
+// we need this function to erase data before testing so far
+export function resetInMemoryDb() {
+  tables.clear();
+  seed();
 }
 
